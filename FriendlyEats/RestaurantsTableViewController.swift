@@ -73,7 +73,30 @@ class RestaurantsTableViewController: UIViewController, UITableViewDataSource, U
     stopObserving()
 
     // Display data from Firestore, part one
-
+    listener = query.addSnapshotListener { [unowned self] (snapshot, error) in
+        guard let snapshot = snapshot else {
+            print("Error fetching snapshot results: \(error!)")
+            return
+        }
+        let models = snapshot.documents.map { (document) -> Restaurant in
+            if let model = Restaurant(dictionary: document.data()) {
+                return model
+            } else {
+                // Don't use fatalError here in a real app.
+                fatalError("Unable to initialize type \(Restaurant.self) with dictionary \(document.data())")
+            }
+        }
+        self.restaurants = models
+        self.documents = snapshot.documents
+        
+        if self.documents.count > 0 {
+            self.tableView.backgroundView = nil
+        } else {
+            self.tableView.backgroundView = self.backgroundView
+        }
+        
+        self.tableView.reloadData()
+    }
 
   }
 
@@ -141,12 +164,16 @@ class RestaurantsTableViewController: UIViewController, UITableViewDataSource, U
   }
 
   @IBAction func didTapPopulateButton(_ sender: Any) {
+
+    
     let words = ["Bar", "Fire", "Grill", "Drive Thru", "Place", "Best", "Spot", "Prime", "Eatin'"]
 
     let cities = Restaurant.cities
     let categories = Restaurant.categories
 
     for _ in 0 ..< 20 {
+        
+
       let randomIndexes = (Int(arc4random_uniform(UInt32(words.count))),
                            Int(arc4random_uniform(UInt32(words.count))))
       let name = words[randomIndexes.0] + " " + words[randomIndexes.1]
@@ -158,7 +185,16 @@ class RestaurantsTableViewController: UIViewController, UITableViewDataSource, U
 
       let collection = Firestore.firestore().collection("restaurants")
 
-
+      let restaurant = Restaurant(
+            name: name,
+            category: category,
+            city: city,
+            price: price,
+            ratingCount: 0,
+            averageRating: 0
+        )
+        
+        collection.addDocument(data: restaurant.dictionary)
     }
   }
 
